@@ -67,7 +67,7 @@ while(1):
 	
 	for pic, contour in enumerate(contours): 
 		area = cv2.contourArea(contour) 
-		if(area > 300): 
+		if(area > 800): 
 			x, y, w, h = cv2.boundingRect(contour) 
 			imageFrame = cv2.rectangle(imageFrame, (x, y), 
 									(x + w, y + h), 
@@ -84,7 +84,7 @@ while(1):
 	
 	for pic, contour in enumerate(contours): 
 		area = cv2.contourArea(contour) 
-		if(area > 300): 
+		if(area > 800): 
 			x, y, w, h = cv2.boundingRect(contour) 
 			imageFrame = cv2.rectangle(imageFrame, (x, y), 
 									(x + w, y + h), 
@@ -100,7 +100,7 @@ while(1):
 										cv2.CHAIN_APPROX_SIMPLE) 
 	for pic, contour in enumerate(contours): 
 		area = cv2.contourArea(contour) 
-		if(area > 300): 
+		if(area > 800): 
 			x, y, w, h = cv2.boundingRect(contour) 
 			imageFrame = cv2.rectangle(imageFrame, (x, y), 
 									(x + w, y + h), 
