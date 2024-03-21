@@ -77,13 +77,95 @@ color_dict_HSV = {
     'gray': [[180, 18, 230], [0, 0, 40]]
 }
 
-color_sequence = ['red1', 'red2', 'green', 'blue', 'yellow', 'purple', 'orange']
-current_color = color_sequence[0]  # Start with the first color in the sequence
-
 webcam = cv2.VideoCapture(0) 
+color_sequence = ['red1', 'green', 'blue', 'purple', 'orange']
+color_num=2# Start with the first color in the sequence
+
+kernel = np.ones((5, 5), "uint8") 
 
 
+def change_color(hsvFrame):
+    global color_num
+    boo_dict={'red1':True, 'green':True, 'blue':True, 'purple':True, 'orange':True}
+    boo_dict[color_sequence[color_num]]=False
+    color_dict={0:0,1:0,2:0,3:0,4:0}
+    #For red1
+    if boo_dict['red1']:
+        red1_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['red1'][1]),np.array(color_dict_HSV['red1'][0]))
+        red1_mask = cv2.dilate(red1_mask, kernel)
+        contours, hierarchy = cv2.findContours(red1_mask, 
+                                            cv2.RETR_TREE, 
+                                            cv2.CHAIN_APPROX_SIMPLE)
+        area = 0
+        for pic, contour in enumerate(contours):
+            if cv2.contourArea(contour) > area:
+                area = cv2.contourArea(contour)
+        if(area > 100):
+            color_dict[0]=area
 
+    
+    #For green
+    if boo_dict['green']:
+        green_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['green'][1]),np.array(color_dict_HSV['green'][0]))
+        green_mask = cv2.dilate(green_mask, kernel)
+        contours, hierarchy = cv2.findContours(green_mask, 
+                                            cv2.RETR_TREE, 
+                                            cv2.CHAIN_APPROX_SIMPLE)
+        area = 0
+        for pic, contour in enumerate(contours):
+            if cv2.contourArea(contour) > area:
+                area = cv2.contourArea(contour)
+        if(area > 100):
+            color_dict[1]=area
+
+    
+    #For blue
+    if boo_dict['blue']:
+        blue_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['blue'][1]),np.array(color_dict_HSV['blue'][0]))
+        blue_mask = cv2.dilate(blue_mask, kernel)
+        contours, hierarchy = cv2.findContours(blue_mask, 
+                                            cv2.RETR_TREE, 
+                                            cv2.CHAIN_APPROX_SIMPLE)
+        area = 0
+        for pic, contour in enumerate(contours):
+            if cv2.contourArea(contour) > area:
+                area = cv2.contourArea(contour)
+        if(area > 100):
+            color_dict[2]=area
+
+    #For purple
+    if boo_dict['purple']:
+        purple_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['purple'][1]),np.array(color_dict_HSV['purple'][0]))
+        purple_mask = cv2.dilate(purple_mask, kernel)
+        contours, hierarchy = cv2.findContours(purple_mask, 
+                                            cv2.RETR_TREE, 
+                                            cv2.CHAIN_APPROX_SIMPLE)
+        area = 0
+        for pic, contour in enumerate(contours):
+            if cv2.contourArea(contour) > area:
+                area = cv2.contourArea(contour)
+        if(area > 100):
+            color_dict[3]=area
+
+    #For orange
+    if boo_dict['orange']:
+        orange_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['orange'][1]),np.array(color_dict_HSV['orange'][0]))
+        orange_mask = cv2.dilate(orange_mask, kernel)
+        contours, hierarchy = cv2.findContours(orange_mask, 
+                                            cv2.RETR_TREE, 
+                                            cv2.CHAIN_APPROX_SIMPLE)
+        area = 0
+        for pic, contour in enumerate(contours):
+            if cv2.contourArea(contour) > area:
+                area = cv2.contourArea(contour)
+        if(area > 100):
+            color_dict[4]=area
+    max_area=0
+    for i in color_dict:
+        if color_dict[i]>max_area:
+            max_area = color_dict[i]
+            max_num=i
+    color_num=max_num
 
 def find_main_countour(image):
 
@@ -118,9 +200,25 @@ def handle_Frame(inputImage):
     croppedImage = cv2.bitwise_and(inputImage, mask)
     cv2.waitKey(1)  # Change from 1 to 0
 
-    hsvFrame = cv2.cvtColor(croppedImage, cv2.COLOR_BGR2HSV)
-    colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['purple'][1]), 
-                    np.array(color_dict_HSV['purple'][0]))
+    blurredImage = cv2.GaussianBlur(croppedImage, (21, 21), 0)
+    hsvFrame = cv2.cvtColor(blurredImage, cv2.COLOR_BGR2HSV)
+    yellow_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['yellow'][1]),np.array(color_dict_HSV['yellow'][0]))
+    yellow_mask = cv2.dilate(yellow_mask, kernel)
+    colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[color_sequence[color_num]][1]), 
+                    np.array(color_dict_HSV[color_sequence[color_num]][0]))   
+    contours, hierarchy = cv2.findContours(yellow_mask, 
+                                           cv2.RETR_TREE, 
+                                           cv2.CHAIN_APPROX_SIMPLE)
+    print(color_sequence[color_num])
+    for pic, contour in enumerate(contours):
+        area = cv2.contourArea(contour) 
+        if(area > 500):
+            print('True')
+            change_color(hsvFrame)
+            time.sleep(3)
+
+
+    cv2.imshow('yellowmask',yellow_mask)
     return handle_pic(colourMask, inputImage)
 
 #image -> image to detect box/lines on. image2-> initial image to draw the box/line on
@@ -206,7 +304,9 @@ def main(args=None):
             if time.time() >= next_process_time:
                 _, imageFrame = webcam.read() 
                 turn_state, shift_state = handle_Frame(imageFrame)
-                twist.linear.x = speedchange
+                if (turn_state != None):
+                    print("moving")
+                    twist.linear.x = speedchange
                 current_time = time.time()
                 if (turn_state != 0):
                     time_taken = mover.detect_color_and_move(turn_state, shift_state)
