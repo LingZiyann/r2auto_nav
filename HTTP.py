@@ -1,5 +1,7 @@
 import requests
 
+httpSent = False
+
 # Define the URL and JSON data
 url = 'http://<ESP_IP_ADDRESS>/openDoor'
 json_data = {
@@ -21,6 +23,7 @@ def HTTP_requests():
             global message
             message = response_data["data"]["message"]
             print("Success:", message)
+            httpSent = True
         else:
             print("Request failed with message:", response_data["data"]["message"])
             message = HTTP_requests()
@@ -29,3 +32,4 @@ def HTTP_requests():
         print("Request failed with status code:", response.status_code)
         message = HTTP_requests()
     return message
+

@@ -5,6 +5,42 @@ import random
 import geom_util as geom
 from roi import ROI
 
+# line angle to make a turn
+turn_angle = 45
+# line shift to make an adjustment
+shift_max = 20
+# turning time of turn
+turn_step = 0.25
+# turning time of shift adjustment
+shift_step = 0.125
+
+
+def check_shift_turn(angle, shift):
+    turn_state = 0
+    #if angle difference bigger than turn_angle then return the angle direction to turn
+    #if angle is 45(pointing to the right) returns positive
+    if angle < turn_angle or angle > 180 - turn_angle:
+        turn_state = np.sign(90 - angle)
+
+    shift_state = 0
+    #if horizonal shift bigger than allowed, return whether the line is too far to the left 
+    #or right side of the robot.
+    # if line is to the left , return -1. if line to right return 1. 
+    if abs(shift) > shift_max:
+        shift_state = np.sign(shift)
+    return turn_state, shift_state
+
+def get_turn(turn_state, shift_state):
+    turn_dir = 0
+    turn_val = 0
+    if shift_state != 0:
+        turn_dir = shift_state
+        turn_val = shift_step if shift_state != turn_state else turn_step
+    elif turn_state != 0:
+        turn_dir = turn_state
+        turn_val = turn_step
+    #turn value -> how long to turn the robot for.
+    return turn_dir, turn_val   
 
 color_dict_HSV = {
     'black': [[180, 255, 30], [0, 0, 0]],
@@ -24,10 +60,13 @@ current_color = color_sequence[0]  # Start with the first color in the sequence
 
 imageFrame = cv2.imread('C:/Users/lingz/Downloads/linephotopurple.jpg')  # Make sure to provide the correct path
 
+
 height, width = imageFrame.shape[:2]
 mask = np.zeros_like(imageFrame)
 top_left = (0, height//2-100)  # Top-left corner
+# bottom_right = (width, 2*height//4)  # Bottom-right corner
 bottom_right = (width, height)  # Bottom-right corner
+
 # Define the region to keep visible (inverse of hiding). Here, using the whole image for simplicity
 cv2.rectangle(mask, top_left, bottom_right, (255, 255, 255), -1)  # White rectangle in the mask
 croppedImage = cv2.bitwise_and(imageFrame, mask)
@@ -95,7 +134,13 @@ def handle_pic(image,image2):
 
     cv2.imshow("image2", image2)
     cv2.waitKey(0)
-    return angle, shift
+    angle2, shift2 = check_shift_turn(angle, shift)
+    turn_state, shift_state = get_turn(angle2, shift2)
+    return turn_state, shift_state
 
-handle_pic(colourMask, imageFrame)
-cv2.waitKey(0)  # Change from 1 to 0
+
+
+print(handle_pic(colourMask, imageFrame))
+key = cv2.waitKey(0)  # Waits indefinitely until a key is pressed
+if key == 27:  # 27 is the ASCII code for the ESC key
+    cv2.destroyAllWindows()

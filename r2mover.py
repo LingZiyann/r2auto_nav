@@ -23,6 +23,8 @@ import math
 import geom_util as geom
 from roi import ROI
 import time
+from HTTP import HTTP_requests
+
 
 # constants
 rotatechange = 0.1
@@ -36,6 +38,8 @@ shift_max = 20
 turn_step = 0.25
 # turning time of shift adjustment
 shift_step = 0.125
+httpSent = False
+Door = ''
 
 def check_shift_turn(angle, shift):
     turn_state = 0
@@ -78,7 +82,7 @@ color_dict_HSV = {
 }
 
 webcam = cv2.VideoCapture(0) 
-color_sequence = ['red1', 'green', 'blue', 'purple', 'orange']
+color_sequence = ['red1', 'green', 'blue', 'purple']
 color_num=2# Start with the first color in the sequence
 
 kernel = np.ones((5, 5), "uint8") 
@@ -86,9 +90,9 @@ kernel = np.ones((5, 5), "uint8")
 
 def change_color(hsvFrame):
     global color_num
-    boo_dict={'red1':True, 'green':True, 'blue':True, 'purple':True, 'orange':True}
+    boo_dict={'red1':True, 'green':True, 'blue':True, 'purple':True}
     boo_dict[color_sequence[color_num]]=False
-    color_dict={0:0,1:0,2:0,3:0,4:0}
+    color_dict={0:0,1:0,2:0,3:0}
     #For red1
     if boo_dict['red1']:
         red1_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['red1'][1]),np.array(color_dict_HSV['red1'][0]))
@@ -148,18 +152,18 @@ def change_color(hsvFrame):
             color_dict[3]=area
 
     #For orange
-    if boo_dict['orange']:
-        orange_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['orange'][1]),np.array(color_dict_HSV['orange'][0]))
-        orange_mask = cv2.dilate(orange_mask, kernel)
-        contours, hierarchy = cv2.findContours(orange_mask, 
-                                            cv2.RETR_TREE, 
-                                            cv2.CHAIN_APPROX_SIMPLE)
-        area = 0
-        for pic, contour in enumerate(contours):
-            if cv2.contourArea(contour) > area:
-                area = cv2.contourArea(contour)
-        if(area > 100):
-            color_dict[4]=area
+    # if boo_dict['orange']:
+    #     orange_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['orange'][1]),np.array(color_dict_HSV['orange'][0]))
+    #     orange_mask = cv2.dilate(orange_mask, kernel)
+    #     contours, hierarchy = cv2.findContours(orange_mask, 
+    #                                         cv2.RETR_TREE, 
+    #                                         cv2.CHAIN_APPROX_SIMPLE)
+    #     area = 0
+    #     for pic, contour in enumerate(contours):
+    #         if cv2.contourArea(contour) > area:
+    #             area = cv2.contourArea(contour)
+    #     if(area > 100):
+    #         color_dict[4]=area
     max_area=0
     for i in color_dict:
         if color_dict[i]>max_area:
@@ -190,7 +194,9 @@ def find_main_countour(image):
         box = geom.order_box(box)
         return C, box
 
-def handle_Frame(inputImage):   
+def handle_Frame(inputImage):  
+    global boo   
+    global Door 
     height, width = inputImage.shape[:2]
     mask = np.zeros_like(inputImage)
     top_left = (0, height//2-100)  # Top-left corner
@@ -206,17 +212,38 @@ def handle_Frame(inputImage):
     yellow_mask = cv2.dilate(yellow_mask, kernel)
     colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[color_sequence[color_num]][1]), 
                     np.array(color_dict_HSV[color_sequence[color_num]][0]))   
-    contours, hierarchy = cv2.findContours(yellow_mask, 
+    contours_yellow, hierarchy_yellow = cv2.findContours(yellow_mask, 
                                            cv2.RETR_TREE, 
                                            cv2.CHAIN_APPROX_SIMPLE)
+    orange_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['orange'][1]),np.array(color_dict_HSV['orange'][0]))
+    orange_mask = cv2.dilate(orange_mask, kernel)
     print(color_sequence[color_num])
-    for pic, contour in enumerate(contours):
+    contours_orange, hierarchy_orange = cv2.findContours(orange_mask, 
+                                        cv2.RETR_TREE, 
+                                        cv2.CHAIN_APPROX_SIMPLE)
+    for pic, contour in enumerate(contours_yellow):
         area = cv2.contourArea(contour) 
         if(area > 500):
-            print('True')
-            change_color(hsvFrame)
-            time.sleep(3)
+            if not boo:
+                print('True, change color')
+                change_color(hsvFrame)
+                time.sleep(3)
+                break
+            #else:
+                #To SHOOT
 
+    for pic, contour in enumerate(contours_orange):
+        area = cv2.contourArea(contour) 
+        if(area > 500):
+            print('True, start HTTP')
+            Door = HTTP_requests()
+            while Door !='Door 1' or Door != 'Door 2':
+                Door = HTTP_requests()
+                
+            else:
+                boo = True 
+                time.sleep(3)
+                break
 
     cv2.imshow('yellowmask',yellow_mask)
     return handle_pic(colourMask, inputImage)
@@ -269,6 +296,8 @@ class Mover(Node):
     def __init__(self):
         super().__init__('mover')
         self.publisher_ = self.create_publisher(geometry_msgs.msg.Twist, 'cmd_vel', 10)
+        self.move_timer = None
+
 
     def detect_color_and_move(self, turn_state, shift_timer):
         start_time = time.time() 
@@ -277,40 +306,59 @@ class Mover(Node):
         twist = geometry_msgs.msg.Twist()
         if turn_state == -1:
             # Move backward
-            twist.linear.z = rotatechange
-            time.sleep(shift_timer)
-            twist.angular.z = 0.0
-
-            print("moving back")
+            twist.linear.x = speedchange
+            twist.angular.z = rotatechange
         elif turn_state == 1:
             # Move forward
-            time.sleep(shift_timer)
-            twist.angular.z = 0.0
+            twist.linear.x = speedchange
+            twist.angular.z = rotatechange
+
+        if self.move_timer is not None:
+            self.move_timer.cancel()
 
         self.publisher_.publish(twist)
-        elapsed_time = time.time() - start_time  # Calculate elapsed time
+        #notsure if its syncrhonous or asynchronous
+        self.move_timer = self.create_timer(shift_timer, self.stop_movement)
+
+        elapsed_time = time.time() - start_time + shift_timer # Calculate elapsed time
+
         return elapsed_time
+    
+    def stop_movement(self):
+        # Stop the robot by publishing a zero-velocity Twist message
+        twist = geometry_msgs.msg.Twist()
+        twist.linear.z = 0
+        self.publisher_.publish(twist)
+        if self.move_timer is not None:
+            self.move_timer.cancel() 
 
 def main(args=None):
+    global color_num
     rclpy.init(args=args)
 
     mover = Mover()
     webcam = cv2.VideoCapture(0) 
     twist = geometry_msgs.msg.Twist()
-    next_process_time = time.time()
 
     try:
         while rclpy.ok():
-            if time.time() >= next_process_time:
-                _, imageFrame = webcam.read() 
-                turn_state, shift_state = handle_Frame(imageFrame)
-                if (turn_state != None):
-                    print("moving")
-                    twist.linear.x = speedchange
-                current_time = time.time()
-                if (turn_state != 0):
-                    time_taken = mover.detect_color_and_move(turn_state, shift_state)
-                    next_process_time = current_time + time_taken + shift_state
+            _, imageFrame = webcam.read() 
+            if httpSent:
+                if Door == 'Door 1':
+                    #follow green
+                    color_num = 1
+                else:
+                    #follow red
+                    color_num = 0
+
+            turn_state, shift_state = handle_Frame(imageFrame)
+            if (turn_state != None):
+                print("moving")
+                twist.linear.x = speedchange
+                mover.publisher_.publish(twist)
+
+            if (turn_state != 0):
+                time_taken = mover.detect_color_and_move(turn_state, shift_state)
             else:
                 ret = webcam.grab()
 

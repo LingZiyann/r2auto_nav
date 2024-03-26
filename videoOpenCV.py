@@ -209,7 +209,7 @@ def handle_pic(image,image2):
     return None,None
 
 
-def handle_Frame(inputImage):   
+def handle_Frame(inputImage, colour):   
     height, width = inputImage.shape[:2]
     mask = np.zeros_like(inputImage)
     top_left = (0, height//2-100)  # Top-left corner
@@ -221,7 +221,7 @@ def handle_Frame(inputImage):
 
     blurredImage = cv2.GaussianBlur(croppedImage, (21, 21), 0)
     hsvFrame = cv2.cvtColor(blurredImage, cv2.COLOR_BGR2HSV)
-    yellow_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['yellow'][1]),np.array(color_dict_HSV['yellow'][0]))
+    yellow_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[colour][1]),np.array(color_dict_HSV[colour][0]))
     yellow_mask = cv2.dilate(yellow_mask, kernel)
     colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[color_sequence[color_num]][1]), 
                     np.array(color_dict_HSV[color_sequence[color_num]][0]))   
