@@ -144,6 +144,7 @@ def change_color(hsvFrame):
             max_area = color_dict[i]
             max_num=i
     color_num=max_num
+    return color_num
             
 
 
@@ -208,8 +209,33 @@ def handle_pic(image,image2):
         return turn_state, shift_state
     return None,None
 
+def detect_changed_colour(imageFrame,new_colour):
+    hsvFrame = cv2.cvtColor(imageFrame, cv2.COLOR_BGR2HSV)    
+    new_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[color_sequence[new_colour]][1]), np.array(color_dict_HSV[color_sequence[new_colour]][0]))
+    new_mask2 = cv2.dilate(new_mask, kernel)
+    new_contour, _ = cv2.findContours(new_mask2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        #height and width of input image
+    h, w = imageFrame.shape[:2]
+    cont, box = find_main_countour(new_mask2)
+    #calculates the central axis of the bounding box
+    if box is not None:
+        p1, p2 = geom.calc_box_vector(box)
+        p1 = (int(p1[0]), int(p1[1]))
+        p2 = (int(p2[0]), int(p2[1]))
+        #print(p1,p2)
 
-def handle_Frame(inputImage, colour):   
+        angle = geom.get_vert_angle(p1, p2, w, h)
+        shift = geom.get_horz_shift(p1[0], w)
+        for pic, contour in enumerate(new_contour):
+            area = cv2.contourArea(contour) 
+            print(angle, area)
+            if area > 500 & 70 < angle < 110:
+                print("new colour found!")
+                print(color_sequence[color_num])
+                return True
+    return False
+
+def handle_Frame(inputImage):   
     height, width = inputImage.shape[:2]
     mask = np.zeros_like(inputImage)
     top_left = (0, height//2-100)  # Top-left corner
@@ -221,20 +247,28 @@ def handle_Frame(inputImage, colour):
 
     blurredImage = cv2.GaussianBlur(croppedImage, (21, 21), 0)
     hsvFrame = cv2.cvtColor(blurredImage, cv2.COLOR_BGR2HSV)
-    yellow_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[colour][1]),np.array(color_dict_HSV[colour][0]))
+    yellow_mask = cv2.inRange(hsvFrame, np.array(color_dict_HSV["yellow"][1]),np.array(color_dict_HSV["yellow"][0]))
     yellow_mask = cv2.dilate(yellow_mask, kernel)
     colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV[color_sequence[color_num]][1]), 
                     np.array(color_dict_HSV[color_sequence[color_num]][0]))   
     contours, hierarchy = cv2.findContours(yellow_mask, 
                                            cv2.RETR_TREE, 
                                            cv2.CHAIN_APPROX_SIMPLE)
-    print(color_sequence[color_num])
+    # print(color_sequence[color_num])
     for pic, contour in enumerate(contours):
         area = cv2.contourArea(contour) 
         if(area > 500):
-            print('True')
-            change_color(hsvFrame)
-            time.sleep(3)
+            new_colour = change_color(hsvFrame)
+            #turn about 140 degree.
+            #time.sleep
+            color_detected = False
+            time.sleep(2)
+
+            while (color_detected == False):
+                ret, imageFrame2 = webcam.read()
+                color_detected = detect_changed_colour(imageFrame2, new_colour)
+            break
+            #stop turning
 
 
     cv2.imshow('yellowmask',yellow_mask)
@@ -245,7 +279,7 @@ kernel = np.ones((5, 5), "uint8")
 while True:
     _, imageFrame = webcam.read()
    
-    print(handle_Frame(imageFrame))
+    handle_Frame(imageFrame)
     # Break from loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

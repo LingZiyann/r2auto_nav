@@ -56,9 +56,9 @@ color_dict_HSV = {
 }
 
 color_sequence = ['red1', 'red2', 'green', 'blue', 'yellow', 'purple', 'orange']
-current_color = color_sequence[0]  # Start with the first color in the sequence
+current_color = color_sequence[2]  # Start with the first color in the sequence
 
-imageFrame = cv2.imread('C:/Users/lingz/Downloads/linephotopurple.jpg')  # Make sure to provide the correct path
+imageFrame = cv2.imread('C:/Users/lingz/Downloads/photo2.jpg')  # Make sure to provide the correct path
 
 
 height, width = imageFrame.shape[:2]
@@ -70,11 +70,13 @@ bottom_right = (width, height)  # Bottom-right corner
 # Define the region to keep visible (inverse of hiding). Here, using the whole image for simplicity
 cv2.rectangle(mask, top_left, bottom_right, (255, 255, 255), -1)  # White rectangle in the mask
 croppedImage = cv2.bitwise_and(imageFrame, mask)
+blurredImage = cv2.GaussianBlur(croppedImage, (21, 21), 0.5)
+
 cv2.waitKey(0)  # Change from 1 to 0
 
-hsvFrame = cv2.cvtColor(croppedImage, cv2.COLOR_BGR2HSV)
-colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['purple'][1]), 
-                   np.array(color_dict_HSV['purple'][0]))
+hsvFrame = cv2.cvtColor(blurredImage, cv2.COLOR_BGR2HSV)
+colourMask = cv2.inRange(hsvFrame, np.array(color_dict_HSV['green'][1]), 
+                   np.array(color_dict_HSV['green'][0]))
 
 def find_main_countour(image):
 
@@ -119,7 +121,7 @@ def handle_pic(image,image2):
     if draw:    
         #draw red
         cv2.drawContours(image2, [cont], -1, (0,0,255), 3)
-        #draw blue
+        #draw 
         cv2.drawContours(image2,[box],0,(255,0,0),2)
         #draw green line
         cv2.line(image2, p1, p2, (0, 255, 0), 3)
