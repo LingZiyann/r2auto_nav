@@ -146,3 +146,5 @@ print(handle_pic(colourMask, imageFrame))
 key = cv2.waitKey(0)  # Waits indefinitely until a key is pressed
 if key == 27:  # 27 is the ASCII code for the ESC key
     cv2.destroyAllWindows()
+
+#adjusted
